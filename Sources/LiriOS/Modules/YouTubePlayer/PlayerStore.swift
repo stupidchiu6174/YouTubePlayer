@@ -18,6 +18,8 @@ final class PlayerStore {
     var isFullscreen = false
     /// webview 目前是否存活(供 View 決定顯示播放器還是「載入」佔位)
     var webViewAlive = false
+    /// 「影片當桌布」模式:webview 目前在桌面層視窗裡,不在面板
+    var isDesktopMode = false
 
     func reset() {
         isPlaying = false
@@ -28,5 +30,6 @@ final class PlayerStore {
         duration = 0
         isFullscreen = false
         webViewAlive = false
+        isDesktopMode = false
     }
 }

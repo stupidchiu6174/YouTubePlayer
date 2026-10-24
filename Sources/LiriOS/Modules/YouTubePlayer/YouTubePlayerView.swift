@@ -22,8 +22,16 @@ struct YouTubePlayerView: View {
                         toolbarButton("house.fill") { controller.goHome() }
                         toolbarButton("arrow.clockwise") { controller.reload() }
                         Spacer()
+                        toolbarButton(store.isDesktopMode ? "rectangle.righthalf.inset.filled" : "desktopcomputer",
+                                      help: store.isDesktopMode ? "影片收回側面板" : "影片當桌布") {
+                            controller.toggleDesktopMode()
+                        }
                     }
-                    WebViewContainer(controller: controller)
+                    if store.isDesktopMode {
+                        desktopModeCard
+                    } else {
+                        WebViewContainer(controller: controller)
+                    }
                 }
             } else {
                 placeholder
@@ -41,7 +49,8 @@ struct YouTubePlayerView: View {
         // 合成器對圓角矩形有快速路徑。
     }
 
-    private func toolbarButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func toolbarButton(_ symbol: String, help: String = "",
+                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .semibold))
@@ -50,6 +59,29 @@ struct YouTubePlayerView: View {
                 .background(.white.opacity(0.08), in: Circle())
         }
         .buttonStyle(.plain)
+        .help(help)
+    }
+
+    /// 桌布模式中 webview 在桌面上,這格改顯示說明與收回鍵
+    private var desktopModeCard: some View {
+        Button {
+            controller.exitDesktopMode()
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "desktopcomputer")
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundStyle(.tint)
+                Text("影片正在桌面播放")
+                    .font(.system(size: 13, weight: .medium))
+                Text("點這裡收回側面板")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
     }
 
     /// webview 未存活時的佔位卡:點了才真正載入

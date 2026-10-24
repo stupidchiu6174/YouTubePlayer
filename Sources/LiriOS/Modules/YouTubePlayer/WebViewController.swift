@@ -17,6 +17,9 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
     private(set) var webView: WKWebView?
     private weak var container: NSView?
     private var teardownTimer: Timer?
+    /// 「影片當桌布」模式的桌面層視窗與螢幕變更監聽(見 DesktopVideoMode.swift)
+    var desktopWindow: DesktopVideoWindow?
+    var desktopScreenObserver: NSObjectProtocol?
 
     /// 暫停後多久銷毀 webview(秒)
     /// 桌面版 YouTube 的頁面比手機版重得多(完整 polymer app + 首頁無限捲動的縮圖),
@@ -30,7 +33,7 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
 
     private static let homeURL = URL(string: "https://www.youtube.com")!
     /// 面板內的版面縮放(全螢幕時恢復 1.0,否則播放器控制列在大螢幕上會偏小)
-    private static let panelZoom: CGFloat = 0.8
+    static let panelZoom: CGFloat = 0.8
     private static let lastWatchKey = "yt.lastWatch"
 
     init(store: PlayerStore) {
@@ -92,6 +95,7 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
 
     func destroyWebView() {
         cancelTeardown()
+        exitDesktopMode()
         webView?.stopLoading()
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "media")
         webView?.removeFromSuperview()
@@ -113,6 +117,11 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
             PanelController.shared.setFullscreenMode(false)
         }
         webView.reload()
+    }
+
+    /// 桌布模式中頁面重新載入(行程被回收、手動重整)會丟掉注入的版面,載完再套一次
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        applyDesktopLayout()
     }
 
     // MARK: - 播放控制(桌面媒體卡用)
@@ -207,8 +216,13 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
         attachIfPossible()
     }
 
+    /// 桌布模式結束後,把 webview 掛回面板容器
+    func reattachToPanel() { attachIfPossible() }
+
     private func attachIfPossible(retry: Int = 0) {
-        guard let webView, let container, webView.superview !== container else { return }
+        // 桌布模式中 webview 屬於桌面視窗,面板容器 update 時不可搶回來
+        guard !store.isDesktopMode,
+              let webView, let container, webView.superview !== container else { return }
         // WebKit 退出全螢幕的動畫還沒跑完時 webview 仍在它的全螢幕視窗裡;
         // 這時硬把它搬回來,WebKit 的搬回流程會失敗,全螢幕視窗可能就殘留在畫面上
         // (看不見但吃掉所有點擊)——這是「退出全螢幕後面板打不開」的元凶之一。
@@ -226,7 +240,7 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
     // MARK: - 生命週期決策
 
     private func evaluateTeardown() {
-        if panelActive || store.isPlaying {
+        if panelActive || store.isPlaying || store.isDesktopMode {
             cancelTeardown()
         } else if webView != nil {
             scheduleTeardown()
@@ -327,8 +341,10 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
       // 面板 440pt @2x = 880px 寬,720p 已經是像素對齊的上限;
       // 之前不分狀態一律鎖 1080–highres,等於在小框裡解 1080/4K 串流,
       // WebContent 行程吃滿 CPU/GPU,面板裡點什麼都跟著鈍。只有全螢幕才拉高。
+      // 桌布模式(html.__spDesktop)也是鋪滿整個螢幕,畫質比照全螢幕
       const isFullscreen = () =>
-        !!(document.fullscreenElement || document.webkitFullscreenElement);
+        !!(document.fullscreenElement || document.webkitFullscreenElement)
+        || document.documentElement.classList.contains("__spDesktop");
       const quality = () => {
         try {
           const p = document.querySelector("#movie_player")
