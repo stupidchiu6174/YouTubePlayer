@@ -55,7 +55,7 @@ extension WebViewController {
         window.orderFrontRegardless()
         desktopWindow = window
         // 影片就是桌面本體了,小工具只會擋畫面
-        WidgetSurfaceManager.shared.setHiddenForDesktopVideo(true)
+        YouTubePlayerModule.onDesktopModeChange(true)
         applyDesktopLayout()
 
         desktopScreenObserver = NotificationCenter.default.addObserver(
@@ -85,7 +85,7 @@ extension WebViewController {
         }
         desktopWindow?.orderOut(nil)
         desktopWindow = nil
-        WidgetSurfaceManager.shared.setHiddenForDesktopVideo(false)
+        YouTubePlayerModule.onDesktopModeChange(false)
         // 面板的 SwiftUI 會重新建容器並 attach;容器若還在就先直接掛回去
         reattachToPanel()
     }

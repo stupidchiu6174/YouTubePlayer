@@ -114,7 +114,7 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
         if store.isFullscreen {
             // 全螢幕中途死掉:旗標不清就會永遠禁止面板收合
             store.isFullscreen = false
-            PanelController.shared.setFullscreenMode(false)
+            YouTubePlayerModule.onFullscreenChange(false)
         }
         webView.reload()
     }
@@ -450,7 +450,7 @@ final class WebViewController: NSObject, WKScriptMessageHandler, WKNavigationDel
         case "fullscreen":
             let on = (body["on"] as? Bool) ?? false
             store.isFullscreen = on
-            PanelController.shared.setFullscreenMode(on)
+            YouTubePlayerModule.onFullscreenChange(on)
             // 全螢幕用原尺寸版面,回到面板再縮回去
             webView?.pageZoom = on ? 1.0 : Self.panelZoom
             if on {
